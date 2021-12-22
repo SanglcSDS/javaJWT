@@ -18,6 +18,26 @@ import com.Project.ProjectSpringBoot.security.jwt.AuthEntryPointJwt;
 import com.Project.ProjectSpringBoot.security.jwt.AuthTokenFilter;
 import com.Project.ProjectSpringBoot.security.services.UserDetailsServiceImpl;
 
+import java.io.IOException;
+
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+import javax.sql.DataSource;
+
+
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.User;
+
+import org.springframework.security.web.authentication.AuthenticationFailureHandler;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.security.web.authentication.rememberme.JdbcTokenRepositoryImpl;
+import org.springframework.security.web.authentication.rememberme.PersistentTokenRepository;
+
+
 @Configuration
 @EnableWebSecurity
 @EnableGlobalMethodSecurity(
@@ -54,6 +74,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
 	@Override
 	protected void configure(HttpSecurity http) throws Exception {
+		http.authorizeRequests().antMatchers("/login", "/logout").permitAll();
 		http.cors().and().csrf().disable()
 			.exceptionHandling().authenticationEntryPoint(unauthorizedHandler).and()
 			.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS).and()
@@ -62,5 +83,44 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 			.anyRequest().authenticated();
 
 		http.addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
+		http.authorizeRequests().and().formLogin()
+        .loginProcessingUrl("/j_spring_security_check") 
+        .loginPage("/login")
+        .successHandler(customSuccessHandler())
+        .failureHandler(customFailureHandler())
+        .usernameParameter("username")
+        .passwordParameter("password")
+        .and().logout().logoutUrl("/logout").logoutSuccessUrl("/");
+	
 	}
+	@Bean
+    public AuthenticationSuccessHandler customSuccessHandler() {
+    	return new AuthenticationSuccessHandler() {
+			
+			@Override
+			public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
+					Authentication authentication) throws IOException, ServletException {
+				HttpSession session = request.getSession();
+				User user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+				session.setAttribute("username", user.getUsername());
+		        session.setAttribute("authorities", user.getAuthorities());
+		        
+		        response.setStatus(HttpServletResponse.SC_OK);
+		       
+	        	response.sendRedirect(request.getContextPath() + "/home");
+			}
+		};
+    }
+    
+    @Bean
+    public AuthenticationFailureHandler customFailureHandler() {
+    	return new AuthenticationFailureHandler() {
+			
+			@Override
+			public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response,
+					AuthenticationException exception) throws IOException, ServletException {
+				response.sendRedirect("/login?error=true");
+			}
+		};
+    }
 }
