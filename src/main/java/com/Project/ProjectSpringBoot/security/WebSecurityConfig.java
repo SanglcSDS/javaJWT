@@ -74,23 +74,22 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
 	@Override
 	protected void configure(HttpSecurity http) throws Exception {
-		http.authorizeRequests().antMatchers("/login", "/logout").permitAll();
 		http.cors().and().csrf().disable()
-			.exceptionHandling().authenticationEntryPoint(unauthorizedHandler).and()
-			.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS).and()
-			.authorizeRequests().antMatchers("/api/auth/**").permitAll()
-			.antMatchers("/api/test/**").permitAll()
+			.authorizeRequests().antMatchers("/", "/login", "/logout").permitAll()
 			.anyRequest().authenticated();
+		http.authorizeRequests().and().formLogin()//
+		// Submit URL của trang login
+		.loginProcessingUrl("/j_spring_security_check") // Submit URL
+		.loginPage("/login")//
+		.successHandler(customSuccessHandler())
+        .failureHandler(customFailureHandler())
+		.usernameParameter("username")//
+		.passwordParameter("password")
+		// Cấu hình cho Logout Page.
+		.and().logout().logoutUrl("/logout").logoutSuccessUrl("/logoutSuccessful");
 
 		http.addFilterBefore(authenticationJwtTokenFilter(), UsernamePasswordAuthenticationFilter.class);
-		http.authorizeRequests().and().formLogin()
-        .loginProcessingUrl("/j_spring_security_check") 
-        .loginPage("/login")
-        .successHandler(customSuccessHandler())
-        .failureHandler(customFailureHandler())
-        .usernameParameter("username")
-        .passwordParameter("password")
-        .and().logout().logoutUrl("/logout").logoutSuccessUrl("/");
+	
 	
 	}
 	@Bean
